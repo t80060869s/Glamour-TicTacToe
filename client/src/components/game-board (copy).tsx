@@ -4,10 +4,10 @@ import {
   X,
   Circle,
   RotateCcw,
-  Crown,
+  Lock,
   Send,
   Sparkles,
-  Loader2,
+  Crown,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,12 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { nanoid } from "nanoid";
 
 type Player = "X" | "O" | null;
@@ -40,72 +41,33 @@ const WINNING_COMBINATIONS = [
 ];
 
 export function GameBoard() {
-  const queryClient = useQueryClient();
+  const [playerId, setPlayerId] = useState<string>("");
 
-  // 1. СИНХРОННАЯ ИНИЦИАЛИЗАЦИЯ (Убирает задержку при старте)
-  const [playerId] = useState<string>(() => {
-    const key = "tic_tac_player_id";
-    let id = localStorage.getItem(key);
+  useEffect(() => {
+    let id = localStorage.getItem("tic_tac_player_id");
     if (!id) {
       id = nanoid();
-      localStorage.setItem(key, id);
+      localStorage.setItem("tic_tac_player_id", id);
     }
-    return id;
-  });
+    setPlayerId(id);
+  }, []);
 
-  // 2. ПОЛУЧЕНИЕ СТАТУСА + isLoading
-  const { data: playerStatus, isLoading } = useQuery({
+  const { data: playerStatus } = useQuery({
     queryKey: ["/api/player", playerId],
-    refetchOnWindowFocus: true,
+    enabled: !!playerId,
     refetchInterval: (query) => {
       const data = query.state.data as { isConnected: boolean } | undefined;
       return data?.isConnected ? false : 2000;
     },
   });
 
-  // Логика мгновенной проверки при возвращении на вкладку
-  useEffect(() => {
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        queryClient.invalidateQueries({ queryKey: ["/api/player", playerId] });
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () =>
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [queryClient, playerId]);
-
   const isConnected = playerStatus?.isConnected;
 
-  // 3. ЕСЛИ ЗАГРУЗКА - ПОКАЗЫВАЕМ СПИННЕР (Вместо мелькания кнопки)
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
-
-  // 4. ЕСЛИ НЕ ПОДКЛЮЧЕН - ЭКРАН ВХОДА
   if (!isConnected) {
     return <WelcomeScreen playerId={playerId} botUsername={BOT_USERNAME} />;
   }
 
-  // 5. ИГРА
   return <ActiveGame playerId={playerId} />;
-}
-
-// --- ЭКРАН ЗАГРУЗКИ (GLAMOUR SPINNER) ---
-function LoadingScreen() {
-  return (
-    <div className="w-full max-w-md mx-auto p-4 flex flex-col items-center justify-center min-h-[40vh]">
-      <Card className="relative w-full p-12 bg-white/60 backdrop-blur-xl border-white/40 shadow-xl rounded-[2rem] flex flex-col items-center justify-center gap-4">
-        <Loader2
-          className="w-10 h-10 text-primary animate-spin"
-          strokeWidth={1.5}
-        />
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground animate-pulse">
-          Проверка статуса...
-        </p>
-      </Card>
-    </div>
-  );
 }
 
 // --- ЭКРАН ВХОДА (VIP ENTRANCE) ---
@@ -116,21 +78,17 @@ function WelcomeScreen({
   playerId: string;
   botUsername: string;
 }) {
-  const [isConnecting, setIsConnecting] = useState(false);
-
   const handleConnect = () => {
-    setIsConnecting(true);
-    setTimeout(() => {
-      window.open(
-        `https://t.me/${botUsername}?start=connect_${playerId}`,
-        "_blank",
-      );
-    }, 300);
+    window.open(
+      `https://t.me/${botUsername}?start=connect_${playerId}`,
+      "_blank",
+    );
   };
 
   return (
     <div className="w-full max-w-md mx-auto p-4 flex flex-col items-center justify-center min-h-[40vh]">
       <Card className="relative w-full p-8 bg-white/80 backdrop-blur-xl border-white/60 shadow-2xl rounded-[2rem] overflow-hidden text-center">
+        {/* Декор */}
         <div className="absolute -top-20 -right-20 w-48 h-48 bg-[#D4A5A5]/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-[#FFD700]/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -157,28 +115,13 @@ function WelcomeScreen({
 
           <Button
             onClick={handleConnect}
-            disabled={isConnecting}
-            className={`w-full py-6 text-sm sm:text-base md:text-lg rounded-full 
-              ${isConnecting ? "bg-primary/80 cursor-wait" : "bg-[#229ED9] hover:bg-[#229ED9]/90"} 
-              text-white shadow-lg shadow-blue-200/40 transition-all transform hover:scale-[1.02] font-medium tracking-normal px-2`}
+            className="w-full py-6 text-sm sm:text-base md:text-lg rounded-full bg-[#229ED9] hover:bg-[#229ED9]/90 text-white shadow-lg shadow-blue-200/40 transition-all transform hover:scale-[1.02] font-medium tracking-normal px-2"
           >
-            {isConnecting ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                <span className="truncate">Ожидаем подтверждения...</span>
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                <span className="truncate">Войти через Telegram</span>
-              </>
-            )}
+            <Send className="mr-3 h-5 w-5" /> Войти через Telegram
           </Button>
 
           <p className="text-[10px] text-muted-foreground/50 uppercase tracking-widest">
-            {isConnecting
-              ? "*Проверяем статус соединения..."
-              : "*Мы отправим подарок в личные сообщения"}
+            *Мы отправим подарок в личные сообщения
           </p>
         </div>
       </Card>
@@ -234,7 +177,7 @@ function ActiveGame({ playerId }: { playerId: string }) {
       try {
         await apiRequest("POST", "/api/game/loss", { storageId: playerId });
         toast({
-          variant: "destructive",
+          variant: "destructive", // Красный стиль для ошибки/проигрыша
           title: "Увы, в этот раз ИИ сильнее",
           description: "Не расстраивайтесь, удача скоро улыбнется вам! 🤍",
         });
@@ -296,7 +239,7 @@ function ActiveGame({ playerId }: { playerId: string }) {
         setIsPlayerTurn(true);
         const result = checkWinner(newBoard);
         if (result) handleGameEnd(result);
-      }, 700);
+      }, 700); // Чуть увеличил задержку для "естественности" раздумий
       return () => clearTimeout(timer);
     }
   }, [isPlayerTurn, winner, board]);
@@ -308,6 +251,7 @@ function ActiveGame({ playerId }: { playerId: string }) {
     setPromoCode(null);
   };
 
+  // --- ТЕКСТЫ СТАТУСОВ ---
   const getStatusText = () => {
     if (winner === "X") return "Блестящая победа!";
     if (winner === "O") return "ИИ одержал верх";
@@ -378,7 +322,7 @@ function ActiveGame({ playerId }: { playerId: string }) {
         </div>
       </Card>
 
-      {/* Try Again Button (ONLY FOR LOSS OR DRAW) */}
+      {/* Try Again Button */}
       <AnimatePresence>
         {winner && winner !== "X" && (
           <motion.div

@@ -1,50 +1,62 @@
-// Простая утилита для воспроизведения звуков
-// Громкость по умолчанию снижена, чтобы не пугать пользователя
-
-// Определяем пути к файлам (они должны лежать в папке public/sounds/)
 const SOUNDS = {
   click: "/sounds/click.mp3",
   win: "/sounds/win.mp3",
   lose: "/sounds/lose.mp3",
 };
 
-// Кэш для аудио-объектов, чтобы не загружать их каждый раз заново
+// Настройки громкости вынесем отдельно для удобства (1.0 = 100%)
+const VOLUMES = {
+  click: 0.2,
+  win: 1.0,
+  lose: 0.6,
+};
+
 const audioCache: Record<string, HTMLAudioElement> = {};
 
+// Функция предзагрузки
 function preloadAudio(url: string) {
   if (!audioCache[url]) {
     const audio = new Audio(url);
-    audio.volume = 0.4; // 40% громкости для деликатности
+    // Важно: на мобильных браузерах фактическая загрузка может не начаться
+    // до первого взаимодействия, но мы хотя бы создадим объект в памяти.
+    audio.preload = "auto";
     audioCache[url] = audio;
   }
 }
 
-export const playSound = (type: "click" | "win" | "lose") => {
+// Запускаем предзагрузку сразу при импорте файла
+Object.values(SOUNDS).forEach(preloadAudio);
+
+export const playSound = (type: keyof typeof SOUNDS) => {
   const url = SOUNDS[type];
+  const volume = VOLUMES[type];
 
   try {
-    // Если еще не загружен - создаем, иначе используем кэш
     let audio = audioCache[url];
+
+    // Страховка: если вдруг предзагрузка не сработала
     if (!audio) {
       audio = new Audio(url);
-      // Настройка громкости под тип звука
-      if (type === "click") audio.volume = 0.1; // Тихий клик
-      if (type === "win") audio.volume = 0.7; // Чуть громче победа
-      if (type === "lose") audio.volume = 0.3;
       audioCache[url] = audio;
     }
 
-    // Сбрасываем время на 0, чтобы можно было быстро кликать подряд
+    // Устанавливаем громкость ПЕРЕД КАЖДЫМ воспроизведением
+    // Это решает проблему с кэшированием громкости
+    audio.volume = volume;
+
+    // Сброс на начало (для быстрых кликов)
     audio.currentTime = 0;
-    audio.play().catch((e) => {
-      // Браузеры запрещают автоплей без взаимодействия, но в игре мы кликаем, так что ок.
-      // Игнорируем ошибки, если звука нет.
-      console.warn("Audio play failed", e);
-    });
+
+    const playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+      playPromise.catch((e) => {
+        // Ошибки автоплея (DOMException) игнорируем,
+        // так как это стандартное поведение браузеров, если нет взаимодействия
+        // console.warn("Audio play suppressed:", e);
+      });
+    }
   } catch (error) {
-    console.error("Audio error", error);
+    console.error("Audio system error", error);
   }
 };
-
-// Предзагрузка при импорте (опционально)
-Object.values(SOUNDS).forEach(preloadAudio);

@@ -20,6 +20,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
+import { playSound } from "@/lib/audio";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { nanoid } from "nanoid";
 
@@ -228,6 +229,7 @@ function ActiveGame({ playerId }: { playerId: string }) {
 
     if (result === "X") {
       // --- ПОБЕДА ---
+      playSound("win");
       confetti({
         particleCount: 150,
         spread: 80,
@@ -252,6 +254,7 @@ function ActiveGame({ playerId }: { playerId: string }) {
       }
     } else if (result === "O") {
       // --- ПРОИГРЫШ ---
+      playSound("lose");
       try {
         await apiRequest("POST", "/api/game/loss", { storageId: playerId });
         toast({
@@ -263,6 +266,7 @@ function ActiveGame({ playerId }: { playerId: string }) {
         console.error(e);
       }
     } else {
+      // playSound("lose");
       toast({
         title: "Ничья — Искусство Равновесия",
         description: "Попробуйте еще раз, победа близка.",
@@ -272,6 +276,7 @@ function ActiveGame({ playerId }: { playerId: string }) {
 
   const handlePlayerMove = (index: number) => {
     if (board[index] || winner || !isPlayerTurn) return;
+    playSound("click");
     const newBoard = [...board];
     newBoard[index] = "X";
     setBoard(newBoard);

@@ -68,5 +68,12 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  // Для проверки статуса
+  app.get("/api/healthcheck", (req, res) => {
+    // Отправляет статус 200 OK и завершает запрос
+    res.sendStatus(200); 
+  });
+  
+  
   return httpServer;
 }

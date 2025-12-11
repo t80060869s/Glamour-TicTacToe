@@ -118,6 +118,27 @@ function WelcomeScreen({
 }) {
   const [isConnecting, setIsConnecting] = useState(false);
 
+  // const handleConnect = () => {
+  //   setIsConnecting(true);
+  //   setTimeout(() => {
+  //     window.open(
+  //       `https://t.me/${botUsername}?start=connect_${playerId}`,
+  //       "_blank",
+  //     );
+  //   }, 300);
+  // };
+
+  // Таймер сброса: если через 15 секунд не подключились, возвращаем кнопку
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isConnecting) {
+      timer = setTimeout(() => {
+        setIsConnecting(false);
+      }, 15000); // 15 секунд — оптимальное время на переключение приложений
+    }
+    return () => clearTimeout(timer);
+  }, [isConnecting]);
+
   const handleConnect = () => {
     setIsConnecting(true);
     setTimeout(() => {

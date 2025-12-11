@@ -115,7 +115,7 @@ function WelcomeScreen({
 
           <Button
             onClick={handleConnect}
-            className="w-full py-6 text-base md:text-lg rounded-full bg-[#229ED9] hover:bg-[#229ED9]/90 text-white shadow-lg shadow-blue-200/40 transition-all transform hover:scale-[1.02] font-medium tracking-wide"
+            className="w-full py-6 text-sm sm:text-base md:text-lg rounded-full bg-[#229ED9] hover:bg-[#229ED9]/90 text-white shadow-lg shadow-blue-200/40 transition-all transform hover:scale-[1.02] font-medium tracking-normal px-2"
           >
             <Send className="mr-3 h-5 w-5" /> Войти через Telegram
           </Button>

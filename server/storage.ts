@@ -1,61 +1,55 @@
-import { type Player, type InsertPlayer } from "@shared/schema";
-import fs from "fs";
-import path from "path";
+import {
+  type User,
+  type InsertUser,
+  type Player,
+  type InsertPlayer,
+} from "@shared/schema";
+import { randomUUID } from "crypto";
+
+// modify the interface with any CRUD methods
+// you might need
 
 export interface IStorage {
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+
   getPlayer(storageId: string): Promise<Player | undefined>;
-  createOrUpdatePlayer(
-    player: Partial<InsertPlayer> & { storageId: string },
-  ): Promise<Player>;
+  createOrUpdatePlayer(player: InsertPlayer): Promise<Player>;
   linkTelegram(storageId: string, chatId: string): Promise<void>;
 }
 
-export class FileStorage implements IStorage {
+export class MemStorage implements IStorage {
+  private users: Map<string, User>;
   private players: Map<string, Player>;
-  private filePath: string;
 
   constructor() {
+    this.users = new Map();
     this.players = new Map();
-    // Файл будет лежать в корне проекта
-    this.filePath = path.join(process.cwd(), "database.json");
-    this.loadData();
   }
 
-  // Загружаем данные из файла при старте
-  private loadData() {
-    try {
-      if (fs.existsSync(this.filePath)) {
-        const rawData = fs.readFileSync(this.filePath, "utf-8");
-        const parsedData = JSON.parse(rawData);
-        // Восстанавливаем Map из массива
-        this.players = new Map(parsedData);
-        console.log(`[Storage] Loaded ${this.players.size} players from disk.`);
-      }
-    } catch (e) {
-      console.error("[Storage] Failed to load data:", e);
-      // Если файл битый, начинаем с чистого листа
-      this.players = new Map();
-    }
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
   }
 
-  // Сохраняем данные в файл при каждом изменении
-  private saveData() {
-    try {
-      // Превращаем Map в массив пар для сохранения в JSON
-      const dataToSave = Array.from(this.players.entries());
-      fs.writeFileSync(this.filePath, JSON.stringify(dataToSave, null, 2));
-    } catch (e) {
-      console.error("[Storage] Failed to save data:", e);
-    }
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.username === username,
+    );
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const user: User = { ...insertUser, id };
+    this.users.set(id, user);
+    return user;
   }
 
   async getPlayer(storageId: string): Promise<Player | undefined> {
     return this.players.get(storageId);
   }
 
-  async createOrUpdatePlayer(
-    insertPlayer: Partial<InsertPlayer> & { storageId: string },
-  ): Promise<Player> {
+  async createOrUpdatePlayer(insertPlayer: InsertPlayer): Promise<Player> {
     const existing = this.players.get(insertPlayer.storageId) || {
       storageId: insertPlayer.storageId,
       telegramChatId: null,
@@ -65,10 +59,6 @@ export class FileStorage implements IStorage {
 
     const updated = { ...existing, ...insertPlayer };
     this.players.set(insertPlayer.storageId, updated);
-
-    // Сохраняем сразу после изменения
-    this.saveData();
-
     return updated;
   }
 
@@ -81,6 +71,7 @@ export class FileStorage implements IStorage {
         isConnected: true,
       });
     } else {
+      // Если игрока нет (редкий кейс), создаем
       this.players.set(storageId, {
         storageId,
         telegramChatId: chatId,
@@ -88,9 +79,7 @@ export class FileStorage implements IStorage {
         isConnected: true,
       });
     }
-    // Сохраняем сразу после изменения
-    this.saveData();
   }
 }
 
-export const storage = new FileStorage();
+export const storage = new MemStorage();

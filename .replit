@@ -14,10 +14,6 @@ publicDir = "dist/public"
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 46847
-externalPort = 3000
-
 [env]
 PORT = "5000"
 
@@ -39,7 +35,8 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev:client"
+# args = "npm run dev:client"
+args = "npm run dev"
 waitForPort = 5000
 
 [agent]
